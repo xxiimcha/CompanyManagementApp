@@ -117,5 +117,48 @@ namespace CompanyManagementApp
             BranchComboBox.SelectedIndex = -1; // Clear selection
             ClientsDataGrid.SelectedItem = null; // Deselect any selected row in the DataGrid
         }
+        private void SearchTextBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        {
+            string searchQuery = SearchTextBox.Text.Trim();
+
+            try
+            {
+                if (string.IsNullOrEmpty(searchQuery))
+                {
+                    // Reload all clients if search box is cleared
+                    LoadClientData();
+                    return;
+                }
+
+                // Parameterized SQL query to prevent SQL injection
+                string query = @"SELECT c.client_id AS ClientID, c.client_name AS ClientName, CONCAT(b.branch_name) AS BranchName 
+                         FROM clients c 
+                         LEFT JOIN branches b ON c.branch_id = b.id
+                         WHERE LOWER(c.client_name) LIKE @Search 
+                            OR LOWER(b.branch_name) LIKE @Search";
+
+                MySqlParameter searchParam = new MySqlParameter("@Search", $"%{searchQuery.ToLower()}%");
+
+                // Execute the query with the parameter
+                MySqlDataAdapter adapter = dbHelper.ExecuteQuery(query, searchParam);
+                DataTable dt = new DataTable();
+                adapter.Fill(dt);
+
+                // Bind the results to the DataGrid
+                ClientsDataGrid.ItemsSource = dt.DefaultView;
+
+                // Optionally handle cases with no results
+                if (dt.Rows.Count == 0)
+                {
+                    ClientsDataGrid.ItemsSource = null; // Clear the DataGrid if no results
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"An error occurred while searching: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+
     }
 }

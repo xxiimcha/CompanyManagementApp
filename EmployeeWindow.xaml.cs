@@ -135,5 +135,49 @@ namespace CompanyManagementApp
             BranchComboBox.SelectedIndex = -1;
             SupervisorComboBox.SelectedIndex = -1;
         }
+        private void SearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            string searchQuery = SearchTextBox.Text.Trim();
+
+            try
+            {
+                if (string.IsNullOrEmpty(searchQuery))
+                {
+                    // If the search query is empty, reload all data
+                    LoadEmployeeData();
+                    return;
+                }
+
+                // SQL query with parameterized search
+                string query = @"SELECT e.ID, e.Given_Name, e.Family_Name, e.Date_Of_Birth, e.Gender_Identity, e.Gross_Salary, e.Supervisor_Id, e.Branch_Id, 
+                                CONCAT(s.Given_Name, ' ', s.Family_Name) AS SupervisorName 
+                         FROM employees e 
+                         LEFT JOIN employees s ON e.Supervisor_Id = s.ID 
+                         WHERE LOWER(e.Given_Name) LIKE @Search 
+                            OR LOWER(e.Family_Name) LIKE @Search 
+                            OR CAST(e.ID AS CHAR) LIKE @Search";
+
+                // Parameterized query to prevent SQL injection
+                MySqlParameter searchParam = new MySqlParameter("@Search", $"%{searchQuery.ToLower()}%");
+
+                // Execute the query and bind the results to the DataGrid
+                MySqlDataAdapter adapter = dbHelper.ExecuteQuery(query, searchParam);
+                DataTable dt = new DataTable();
+                adapter.Fill(dt);
+                EmployeeDataGrid.ItemsSource = dt.DefaultView;
+
+                // Show message if no results are found
+                if (dt.Rows.Count == 0)
+                {
+                    // Optionally, clear the DataGrid or display an empty result message
+                    EmployeeDataGrid.ItemsSource = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Display error message if something goes wrong
+                MessageBox.Show($"An error occurred while searching: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
     }
 }

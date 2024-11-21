@@ -76,5 +76,50 @@ namespace CompanyManagementApp
                 MessageBox.Show("Please select a branch to delete.");
             }
         }
+
+        private void SearchTextBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        {
+            string searchQuery = SearchTextBox.Text.Trim();
+
+            try
+            {
+                if (string.IsNullOrEmpty(searchQuery))
+                {
+                    // If search box is empty, reload all branches
+                    LoadBranchData();
+                    return;
+                }
+
+                // Parameterized query to search for branches
+                string query = @"SELECT b.id, b.branch_name AS BranchName, 
+                                CONCAT(e.Given_Name, ' ', e.Family_Name) AS ManagerName, 
+                                b.manager_started_at AS ManagerStartedAt 
+                         FROM branches b
+                         LEFT JOIN employees e ON b.manager_id = e.id
+                         WHERE LOWER(b.branch_name) LIKE @Search 
+                            OR LOWER(CONCAT(e.Given_Name, ' ', e.Family_Name)) LIKE @Search";
+
+                // Pass the search parameter to prevent SQL injection
+                MySqlParameter searchParam = new MySqlParameter("@Search", $"%{searchQuery.ToLower()}%");
+
+                MySqlDataAdapter adapter = dbHelper.ExecuteQuery(query, searchParam);
+                DataTable dt = new DataTable();
+                adapter.Fill(dt);
+
+                // Bind the filtered results to the DataGrid
+                BranchDataGrid.ItemsSource = dt.DefaultView;
+
+                // Optionally handle the case where no results are found
+                if (dt.Rows.Count == 0)
+                {
+                    BranchDataGrid.ItemsSource = null; // Clear the grid
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"An error occurred while searching: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
     }
 }
